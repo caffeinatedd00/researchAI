@@ -292,45 +292,54 @@ export default function App() {
     setCurrentView('document');
   };
 
+  const [sourcesError, setSourcesError] = useState('');
+
   const fetchAISources = async (title, projectId) => {
   setIsFetchingSources(true);
+  setSourcesError('');
   try {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      setSourcesError('API key is missing. Check VITE_GEMINI_API_KEY in your .env file and restart the dev server.');
+      return;
+    }
+
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent?key=${apiKey}`;
 
-    const prompt = `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide realistic URLs and brief abstracts.
+    const prompt = `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide URLs which works and brief abstracts.
 
 Respond with ONLY a valid JSON array and nothing else: no explanation, no markdown, no code fences. Each item must have exactly these keys:
 "title" (string), "authors" (string), "year" (integer), "abstract" (string), "url" (string).`;
 
-    const payload = {
-      contents: [{ parts: [{ text: prompt }] }]
-    };
-
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          thinkingConfig: { thinkingLevel: 'minimal' }
+        }
+      })
     });
 
     const result = await response.json();
+    console.log('Gemma raw response:', result);
 
     if (result.error) {
-      console.error("Gemma API error:", result.error);
+      setSourcesError(`API error ${result.error.code}: ${result.error.message}`);
       return;
     }
 
     const parts = result.candidates?.[0]?.content?.parts || [];
-    // Skip any "thought" parts and use the last text part
     const textParts = parts.filter(p => p.text && !p.thought);
     const rawText = textParts[textParts.length - 1]?.text || '';
 
-    // Strip code fences and grab the JSON array
     const cleaned = rawText.replace(/```json|```/gi, '').trim();
     const start = cleaned.indexOf('[');
     const end = cleaned.lastIndexOf(']');
     if (start === -1 || end === -1) {
-      console.error("No JSON array found in response:", rawText);
+      setSourcesError('Model replied, but not with a JSON array. See console for the raw output.');
+      console.error('Unparseable output:', rawText);
       return;
     }
 
@@ -342,15 +351,16 @@ Respond with ONLY a valid JSON array and nothing else: no explanation, no markdo
     }));
 
     setSources(newSources);
-    setProjects(prevProjects =>
-      prevProjects.map(p => p.id === projectId ? { ...p, sources: newSources } : p)
+    setProjects(prev =>
+      prev.map(p => (p.id === projectId ? { ...p, sources: newSources } : p))
     );
   } catch (error) {
-    console.error("Error fetching sources:", error);
+    console.error('Error fetching sources:', error);
+    setSourcesError(`Request failed: ${error.message}`);
   } finally {
     setIsFetchingSources(false);
   }
-};
+  };
 
   // Notes handlers
   const handleAddNote = () => {
