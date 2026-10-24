@@ -293,59 +293,64 @@ export default function App() {
   };
 
   const fetchAISources = async (title, projectId) => {
-    setIsFetchingSources(true);
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent?key=${apiKey}`;
-      
-      const payload = {
-          contents: [{ parts: [{ text: `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide realistic URLs and brief abstracts.` }] }],
-          generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                  type: "ARRAY",
-                  items: {
-                      type: "OBJECT",
-                      properties: {
-                          "id": { "type": "INTEGER" },
-                          "title": { "type": "STRING" },
-                          "authors": { "type": "STRING" },
-                          "year": { "type": "INTEGER" },
-                          "abstract": { "type": "STRING" },
-                          "url": { "type": "STRING" }
-                      },
-                      "required": ["id", "title", "authors", "year", "abstract", "url"]
-                  }
-              }
-          }
-      };
+  setIsFetchingSources(true);
+  try {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent?key=${apiKey}`;
 
-      const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-      });
-      
-      const result = await response.json();
-      if (result.candidates && result.candidates.length > 0 && result.candidates[0].content) {
-        const jsonText = result.candidates[0].content.parts[0].text;
-        const parsedSources = JSON.parse(jsonText);
-        const newSources = parsedSources.map((s, index) => ({
-          ...s, id: Date.now() + index, status: 'suggested'
-        }));
-        
-        setSources(newSources);
-        
-        setProjects(prevProjects => prevProjects.map(p => 
-          p.id === projectId ? { ...p, sources: newSources } : p
-        ));
-      }
-    } catch (error) {
-      console.error("Error fetching sources:", error);
-    } finally {
-      setIsFetchingSources(false);
+    const prompt = `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide realistic URLs and brief abstracts.
+
+Respond with ONLY a valid JSON array and nothing else: no explanation, no markdown, no code fences. Each item must have exactly these keys:
+"title" (string), "authors" (string), "year" (integer), "abstract" (string), "url" (string).`;
+
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }]
+    };
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (result.error) {
+      console.error("Gemma API error:", result.error);
+      return;
     }
-  };
+
+    const parts = result.candidates?.[0]?.content?.parts || [];
+    // Skip any "thought" parts and use the last text part
+    const textParts = parts.filter(p => p.text && !p.thought);
+    const rawText = textParts[textParts.length - 1]?.text || '';
+
+    // Strip code fences and grab the JSON array
+    const cleaned = rawText.replace(/```json|```/gi, '').trim();
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start === -1 || end === -1) {
+      console.error("No JSON array found in response:", rawText);
+      return;
+    }
+
+    const parsedSources = JSON.parse(cleaned.slice(start, end + 1));
+    const newSources = parsedSources.map((s, index) => ({
+      ...s,
+      id: Date.now() + index,
+      status: 'suggested'
+    }));
+
+    setSources(newSources);
+    setProjects(prevProjects =>
+      prevProjects.map(p => p.id === projectId ? { ...p, sources: newSources } : p)
+    );
+  } catch (error) {
+    console.error("Error fetching sources:", error);
+  } finally {
+    setIsFetchingSources(false);
+  }
+};
 
   // Notes handlers
   const handleAddNote = () => {
