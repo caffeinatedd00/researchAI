@@ -296,10 +296,10 @@ export default function App() {
     setIsFetchingSources(true);
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-26b-a4b-it:generateContent?key=${apiKey}`;
       
       const payload = {
-          contents: [{ parts: [{ text: `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide realistic URLs (even if hypothetical) and brief abstracts.` }] }],
+          contents: [{ parts: [{ text: `Suggest 3-4 academic sources (papers, books) related to the research topic: "${title}". Provide realistic URLs and brief abstracts.` }] }],
           generationConfig: {
               responseMimeType: "application/json",
               responseSchema: {
