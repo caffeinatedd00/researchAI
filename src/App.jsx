@@ -449,13 +449,8 @@ Respond with ONLY a valid JSON array and nothing else: no explanation, no markdo
   if (currentView === 'library') {
     return (
       <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-600 text-white p-2 rounded-lg">
-              <Sparkles size={24} />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight">ResearchAI</h1>
-          </div>
+        <header className="bg-white border-b border-slate-200 px-6 py-2 flex items-center justify-between shadow-sm">
+          <img src="/odin-logo.png" alt="Odin Review" className="h-14 w-auto" />
           <div className="flex items-center gap-4 text-sm font-medium text-slate-600">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center text-slate-600 font-bold">
